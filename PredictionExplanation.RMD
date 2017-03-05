@@ -1,0 +1,86 @@
+---
+title: "Predicting Exercise Device Data"
+author: "Benjamin Milks"
+date: "March 5, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Overview 
+
+Exercise data from accelerometers on 6 participants was collected by Groupware@LES for their Human Activity Recognition Project. The course "Practical Machine Learning" had me to a project with this exercise data. My goal is to make a prediction model to predict if the participant is sitting down, standing up, sitting, standing, or walking. Using the R package randomForest, I made a model which made predictions with a very high accuracy. I then used the model to predict a set of 20, which was used for a quiz.
+
+
+## Starting the Process of Making A Prediction Model 
+
+First you have to get the data on your computer so you can clean it.
+
+```{r, echo=FALSE}
+library(caret)
+library(randomForest)
+library(e1071)
+trainurl <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+testurl <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+setwd("~/R AND GITHUB AND EVERYTHING/R/PML/PML")
+traindf <- read.csv("pml-training.csv", na.strings = c("NA", "", "#DIV/0!"))
+testdf <- read.csv("pml-testing.csv", na.strings = c("NA", "", "#DIV/0!"))
+```
+
+## Huge Data Frames
+
+The training data frame is 19622*160, and the testing one is 20*160. This means there are 160 columns for both of the data frames. Some of the columns had very few rows filled in, and were making the data frame too clunky. I only chose to keep the columns which had no "NA"s. The columns were originally the same between test and train, and to be sure of consistency I also used the traindf for is.na just in case there was a different column in the two data sets which had different "NA"s. The only difference in columns is training has "classe", and testing has "problem_id", which was the last column for both.
+
+```{r }
+smalltraindf <- traindf[,colSums(is.na(traindf)) == 0]
+smalltestdf <- testdf[,colSums(is.na(traindf)) == 0]
+dim(smalltraindf)
+dim(smalltestdf)
+colnames(smalltraindf)
+colnames(smalltestdf)
+smalltraindf <- smalltraindf[,c(8:60)]
+smalltestdf <- smalltestdf[,c(8:60)]
+
+```
+
+## Making Training Data Frame Into Training and Testing
+I will choose .7 for p because that gives a large enough test set for me to feel comfortable, while providing lots of data to make the model. This will help in the process of cross validating the model.
+
+```{r}
+set.seed(88)
+traintrain <- createDataPartition(smalltraindf$classe, times = 1, p = 0.7, list = FALSE)
+modeltrdf <- smalltraindf[traintrain,]
+modeltestdf <- smalltraindf[-traintrain,]
+dim(modeltrdf)
+dim(modeltestdf)
+```
+
+
+## Random Forest
+```{r}
+randomforestmodel <- randomForest(classe~., data=modeltrdf)
+rfmodelpredictions <- predict(randomforestmodel, newdata = modeltestdf)
+table(rfmodelpredictions, modeltestdf$classe)
+confusionMatrix(modeltestdf$classe, rfmodelpredictions)
+
+```
+Our random forest was very sucessful and predicted 5848/5885 of the classes correctly when using data from the test set we made from the original training set. We can see that the accuracy is .9937 and our estimated out of sample error was .006.
+
+
+```{r, }
+rfmodeltest <- predict(randomforestmodel, newdata = smalltestdf)
+```
+The model predicted 
+
+1.B  2.A  3.B  4.A  5.A  6.E  7.D  8.B  9.A  10.A  11.B  12.C  13.B  14.A  15.E  16.E  17.A  18.B  19.B  20.B 
+
+
+## Citation
+
+Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H. Qualitative Activity Recognition of Weight Lifting Exercises. Proceedings of 4th International Conference in Cooperation with SIGCHI (Augmented Human '13) . Stuttgart, Germany: ACM SIGCHI, 2013.
+
+## If You Want to Learn More
+
+Go to http://groupware.les.inf.puc-rio.br/har#literature#ixzz4aUBVfC5A, and visit the official website.
